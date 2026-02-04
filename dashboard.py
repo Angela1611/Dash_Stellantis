@@ -3,6 +3,7 @@ import base64
 import os
 import pandas as pd
 
+# --- Utils ---
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
         data = f.read()
@@ -24,7 +25,6 @@ def set_png_as_page_bg(png_file):
 def load_data(file_path):
     try:
         df = pd.read_excel(file_path)
-        # Ensure 'Documento' is treated as string for comparison and remove any leading/trailing spaces
         if 'Documento' in df.columns:
             df['Documento'] = df['Documento'].astype(str).str.strip()
         return df
@@ -32,21 +32,17 @@ def load_data(file_path):
         st.error(f"Error loading Excel file: {e}")
         return None
 
-def main():
-    st.set_page_config(page_title="Dashboard RFC", layout="centered")
-    
-    # Path to the background image
-    image_path = "stellantis.jpeg"
-    excel_path = "ROSTER2.xlsx"
-    
+# --- Pages ---
+
+def show_home(excel_path, image_path):
+    # Set background only on Home page
     if os.path.exists(image_path):
         set_png_as_page_bg(image_path)
     else:
-        st.warning(f"Image not found at {image_path}. Please ensure 'stellantis.jpeg' is in the same directory.")
+        st.warning(f"Image not found at {image_path}")
 
     st.title("User Dashboard")
     
-    # Create the RFC input field
     rfc_input = st.text_input("RFC", placeholder="Ingrese su RFC aquí")
     
     if st.button("Ingresar"):
@@ -54,25 +50,64 @@ def main():
             if os.path.exists(excel_path):
                 df = load_data(excel_path)
                 if df is not None:
-                    # Clean input rfc
                     clean_rfc = rfc_input.strip()
-                    
-                    # Lookup
-                    # specific check for column existence to avoid crash
+                    # Check for required columns
                     if 'Documento' in df.columns and 'Nombre' in df.columns:
                         result = df[df['Documento'] == clean_rfc]
-                        
                         if not result.empty:
                             nombre = result.iloc[0]['Nombre']
-                            st.success(f"Nombre encontrado: {nombre}")
+                            
+                            # Get Vista Dash if it exists, otherwise default to "N/A"
+                            vista_dash = "N/A"
+                            if 'Vista Dash' in df.columns:
+                                vista_dash = result.iloc[0]['Vista Dash']
+                            
+                            # Set session state to switch "page"
+                            st.session_state.page = 'result'
+                            st.session_state.result_name = nombre
+                            st.session_state.result_vista = vista_dash
+                            st.rerun()
                         else:
                             st.error("RFC no encontrado.")
                     else:
-                        st.error("El archivo Excel no tiene las columnas requeridas: 'Documento' y 'Nombre'.")
+                        st.error("Columnas 'Documento' o 'Nombre' faltantes.")
             else:
-                st.error(f"No se encontró el archivo de datos: {excel_path}")
+                st.error(f"No se encontró {excel_path}")
         else:
-            st.warning("Por favor ingrese un RFC.")
+            st.warning("Ingrese un RFC.")
+
+def show_result():
+    st.title("Resultado")
+    
+    # Display Name
+    st.markdown(f"## Nombre: {st.session_state.result_name}")
+    
+    # Display Vista Dash
+    # You can format this however you like, e.g. another header or just text
+    if 'result_vista' in st.session_state:
+        st.markdown(f"### Vista Dash: {st.session_state.result_vista}")
+    
+    if st.button("Volver"):
+        st.session_state.page = 'home'
+        # Clear specific session data if desired, or just overwrite next time
+        st.rerun()
+
+# --- Main ---
+
+def main():
+    st.set_page_config(page_title="Dashboard RFC", layout="centered")
+    
+    # Initialize Session State
+    if 'page' not in st.session_state:
+        st.session_state.page = 'home'
+    
+    excel_path = "ROSTER2.xlsx"
+    image_path = "stellantis.jpeg"
+
+    if st.session_state.page == 'home':
+        show_home(excel_path, image_path)
+    elif st.session_state.page == 'result':
+        show_result()
 
 if __name__ == "__main__":
     main()
