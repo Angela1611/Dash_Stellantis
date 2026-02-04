@@ -41,7 +41,7 @@ def show_home(excel_path, image_path):
     else:
         st.warning(f"Image not found at {image_path}")
 
-    st.title("User Dashboard")
+    st.title("Welcome")
     
     rfc_input = st.text_input("RFC", placeholder="Ingrese su RFC aquí")
     
